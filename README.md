@@ -88,6 +88,8 @@ This section denotes the commands you may need to use in your daily practice. Ea
 
 ### Recommended Commands Sequence
 
+:information_source: You might need to look into [Windows Configurations](#configurations-for-windows-users) if you are following this guide using Windows OS.
+
 1. Build your image: `docker build -t <image-name> .`
 2. Run the container: `docker run --name <container-name> -d -p 4000:4000 <image-name>`
 3. Check running containers: `docker ps`
@@ -97,19 +99,54 @@ This section denotes the commands you may need to use in your daily practice. Ea
 7. Remove the container (if no longer needed): `docker rm <container-name> -f`
 8. List images (optional): `docker image ls`
 
-## Hot Reload
+## Hot Reload & Volumes
 
 In Nodejs, in development stage, when you modify a file and you want to server to restart automatically when you save your changes, you need to use `Nodemon` package. Nodemon works by monitoring the file system for changes using a feature called file system events. When you modify a file, an event is triggered that Nodemon listens for, prompting it to restart your application as a _Hot Reload_. You need to add your `nodemon index.js` command into your Dockerfile. In this project, we add it through the package.json scripts into Dockerfile as `CMD [ "npm", "run", "dev" ]`.
 
 Usually when we want to see a change affecting the containers' files, we need to remove the running container first, do the changes in local files in the machine, then build the image, and finally run the container. In order to bypass all these steps and make the container files syncs directly, we need to add a new flag to `docker run` command which is `-v`. This way, you don’t have to rebuild the Docker image every time you make a small change to your code. When using tools like Nodemon, changes in the local directory will trigger automatic reloads inside the container.
 
+### Two-Way Binding
+
 The `-v` flag in Docker is used to mount volumes or bind directories between your local machine and a Docker container. It allows you to share files and directories between your host machine and the container, making it easier to work with files during development.
 
 Your run command will look like: `docker run --name <container-name> -v [host-path]:[container-path] -d -p PORT:PORT <image-name>`
 
-### Configurations for Windows Users
+:warning: This will cause any change in either the local machine or the Docker container to reflect on the other accordingly.
+
+### One-Way Binding
+
+You may need this if you wish you local machine changes to reflect directly on your Docker container only (one way), while any changes in the Docker container will NOT reflect any changes on your local machine.
+
+Your run command will look like: `docker run --name <container-name> -v [host-path]:[container-path]:ro -d -p PORT:PORT <image-name>`
+
+We added `:ro` after the container path indicating _Read-only_.
+
+But, what happens if I delete, for example, `node_modules` from my local machine? As you have guessed, `node_modules` will also be deleted from the container's files and therefore crashing the running application. How should we solve that? Welcome to [Anonymous Volumes](#anonymous-volumes).
+
+### Anonymous Volumes
+
+These volume has no host directory specified (unlike the first ones), so Docker will automatically create an anonymous volume to store the data in the specified directory such as `/app/node_modules` inside the container. The container can write to this volume (since it’s not read-only), and the data physically persists as long as the volume exists, meaning that even if you remove the container, your volume will still be there (not flushed).
+
+Your run command will look like: `docker run --name <container-name> -v [host-path]:[container-path]:ro -v </container/path/to/file> -d -p PORT:PORT <image-name>`
+
+Now, even if you delete `node_modules` are deleted in your local, your application on the container will still be running, but you might notice the modules are removed from your container as well (when you use `docker exec...` command to view the content of the container files). Don't worry, `node_modules` are still there. As we said, the data persists as long as the volume exists, so if you remove/delete the container and run it back, you will see the modules coming back again (even though your modules are deleted from your local machine). You may navigate to Docker Desktop -> Volumes to view your available volumes. That explains why the application was still running and not crashed in the container.
+
+Is there a simpler solution? Of course!
+
+### Alternative Solution
+
+In Ideal world, we maintain our main source files within a folder called `src`. Therefore, when we do the one-way binding, we will do it this way `-v $(pwd)/src:/app/src:ro`. This way you will ensure that the files within the `src` folder will only mirror the changes with the container's src folder, leaving the outsider files safe and untouched from changes or modifications. If you wish to follow this way, don't forget to update your `package.json` scripts to `nodemon --legacy-watch src/index.js` so it can navigate to `src` to read your files correctly.
+
+If you face any challenges seeing your updates, try to build the image again and try run.
+
+## Configurations for Windows Users
 
 :warning: **Important:** Due to different behaviors on operating systems, it is advisable to use absolute path for the [host-path] part as relative paths might may cause issues on Windows depending on how Docker is configured. For example, your command will looks like `docker run --name [container-name] -v C:/Users/Loai/Desktop/[project-name]:/app -d -p PORT:PORT [image-name]`. MacOS/Linux might not face the same issue and relative paths generally work fine with them.
+
+If you do not wish you use the lengthy absolute path, you may shorten it using `$(pwd)` command. If you are using If you’re using Git Bash on Windows, it automatically converts Unix-style paths (/c/Users/...) into Windows-style paths (C:/Users/...). However, sometimes this automatic conversion interferes with Docker's ability to bind the mount properly.
+
+You can disable Git Bash's path conversion by setting the `MSYS_NO_PATHCONV=1` environment variable, like this:
+`MSYS_NO_PATHCONV=1 docker run --name <container-name> -v $(pwd):<container-path>:ro -d -p PORT:PORT <image-name>`
 
 After following the steps in this section, when running your localhost on Windows to test your local changes, you might notice that all local files mirrors the container files as expected but still you might not be able to see the changes. This is happening because Docker on Windows has to "translate" between the Windows file system and the virtualized Linux file system inside the container, and during this translation, file change notifications may not be passed through correctly. To solve the issue, you need to add a flag `--legacy-watch` in your Nodemon command to become `nodemon --legacy-watch index.js`.
 
