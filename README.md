@@ -154,6 +154,110 @@ Key Concepts in Docker Compose:
 To run your docker compose, run `docker-compose up -d`. `-d` is used to activate detach mode as before.
 To shut down your docker compose, run `docker-compose down`.
 
+Here is a simple structure of [how to define a basic Compose file for your project](https://docs.docker.com/compose/gettingstarted/#step-2-define-services-in-a-compose-file).
+
+The above commands will work if you have a single `docker-compose.yml` file in your project. The next section will guide you how to manage multiple files (indicating multiple envs) in your project.
+
+### Environment Variables and Docker Environments
+
+When publishing your application, you will need environment variables to be utilised within your application. For that, in your `docker-compose.yml`, add the following block in under your defined service:
+
+```
+env_file:
+   - ./.env
+```
+
+This is supposed to inform your Docker Compose file that path to your `.env` file where you store your environment variables. If you wish to declare specific envs for different Docker environments, use:
+
+```
+environment:
+   - yourEnv=<whatever>
+```
+
+Whenever you plan to split your application to different environments (e.g. development, staging, production, etc.), you may need to create a specific Docker Compose file for each environment. Suppose we're only having _DEV_ and _PROD_ for this example. We will need to create two Docker Compose file as follows:
+
+**Development**: `docker-compose.dev.yml`
+
+```
+services:
+  node-app:
+    container_name: <your-container-name>
+    build: .
+    volumes:
+      - ./src:/app/src:ro
+    ports:
+      - "<port>:<port>"
+    environment:
+      - NODE_ENV=dev
+    env_file:
+      - ./.env
+```
+
+**Production**: `docker-compose.prod.yml`
+
+```
+services:
+  node-app:
+    container_name: <your-container-name>
+    build: .
+    ports:
+      - "<port>:<port>"
+    environment:
+      - NODE_ENV=prod
+    env_file:
+      - ./.env
+```
+
+_Note: We have removed volumes as we don't want any mirroring in the prod env_
+
+In this scenario, we can use the following commands to run the specific docker compose environment file:
+
+`docker-compose -f <specific-docker-compose-file> up -d`
+`docker-compose -f <specific-docker-compose-file> down`
+
+But in reality, we don't want to keep duplicating the content in each environment. What if we want to add/modify a service or a configuration? We will have to repeat the same setting in all Docker Compose files making it a cumbersome. Therefore, a common practice is that we can save the common configuration in a `docker-compose.yml` file and keep only the parts that differ within the environment specific file to avoid repetition. The following is an example:
+
+**Main Docker Compose File**: `docker-compose.yml` (for all environments)
+
+```
+services:
+  node-app:
+    container_name: <your-container-name>
+    build: .
+    ports:
+      - "<port>:<port>"
+    env_file:
+      - ./.env
+```
+
+**Development**: `docker-compose.dev.yml`
+
+```
+services:
+  node-app:
+    volumes:
+      - ./src:/app/src:ro
+    environment:
+      - NODE_ENV=dev
+```
+
+**Production**: `docker-compose.prod.yml`
+
+```
+services:
+  node-app:
+    environment:
+      - NODE_ENV=prod
+```
+
+If you wish to use this way, use the following commands to run your specific environment docker compose file. Bear in mind that `<common-docker-compose-file>` here refers to `docker-compose.yml` file, in this example, while `<docker-compose-env-file>` refers to either `docker-compose.dev.yml` or `docker-compose.prod.yml`
+
+`docker-compose -f <common-docker-compose-file> -f <docker-compose-env-file> up -d`
+`docker-compose -f <common-docker-compose-file> -f <docker-compose-env-file> down`
+
+For the environments that do not have the volumes for mirroring, you might need to rebuild using the following command, in case you got changes that want them to be reflected:
+`docker-compose -f <common-docker-compose-file> -f <docker-compose-env-file> -d --build`
+
 ## Configurations for Windows Users
 
 :warning: **Important:** Due to different behaviors on operating systems, it is advisable to use absolute path for the [host-path] part as relative paths might may cause issues on Windows depending on how Docker is configured. For example, your command will looks like `docker run --name [container-name] -v C:/Users/Loai/Desktop/[project-name]:/app -d -p PORT:PORT [image-name]`. MacOS/Linux might not face the same issue and relative paths generally work fine with them.
