@@ -139,6 +139,21 @@ In Ideal world, we maintain our main source files within a folder called `src`. 
 
 If you face any challenges seeing your updates, try to build the image again and try run.
 
+## Docker Compose
+
+**Docker Compose** is a tool used for defining and running multi-container Docker applications. Instead of managing individual Docker containers manually, Compose assists in automating and managing complex environments with a simple, declarative approach by setting containers, their configurations, and how they interact with each other in a single YAML file, usually called `docker-compose.yml`.
+
+Key Concepts in Docker Compose:
+
+1. **Service**: a definition of a container that is part of your application (e.g. web, database, cache, backend).
+2. **YAML File**: Describes how your application is composed of multiple services in `docker-compose.yml`.
+3. **Networking**: Compose sets up networking between containers so they can communicate with each other.
+4. **Volumes**: Helps you manage persistent storage within the configuration.
+5. **Scaling**: You can scale services up or down for load balancing or redundancy.
+
+To run your docker compose, run `docker-compose up -d`. `-d` is used to activate detach mode as before.
+To shut down your docker compose, run `docker-compose down`.
+
 ## Configurations for Windows Users
 
 :warning: **Important:** Due to different behaviors on operating systems, it is advisable to use absolute path for the [host-path] part as relative paths might may cause issues on Windows depending on how Docker is configured. For example, your command will looks like `docker run --name [container-name] -v C:/Users/Loai/Desktop/[project-name]:/app -d -p PORT:PORT [image-name]`. MacOS/Linux might not face the same issue and relative paths generally work fine with them.
