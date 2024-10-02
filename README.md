@@ -258,6 +258,105 @@ If you wish to use this way, use the following commands to run your specific env
 For the environments that do not have the volumes for mirroring, you might need to rebuild using the following command, in case you got changes that want them to be reflected:
 `docker-compose -f <common-docker-compose-file> -f <docker-compose-env-file> -d --build`
 
+## Working with multiple environments on Dockerfile & Multi-Stage Dockerfile
+
+Once you allow your app to run on different environments as explained in the previous section, you might face a situation where you want to run `npm run dev` for development within Dockerfile and `npm start` for production. Although instantiating Dockerfile to multiple environments is possible, yet it will not be practical if there is a change you want to add later on as that change might need to be added to all Dockerfiles one-by-one.
+
+One way to allow your Dockerfile work for multiple environment is the following:
+If you want to override `CMD [ "npm", "run", "dev" ]` so that it works as `npm run dev` for dev and `npm start` for prod is to add the following to your docker compose files:
+
+- For `docker-compose.dev.yml`, add `command: ["npm", "run", "dev"]`
+- For `docker-compose.prod.yml`, add `command: ["npm", "start"]`
+
+Example:
+
+```
+services:
+  node-app:
+    build:
+      context: .
+      args:
+        - NODE_ENV=dev
+    volumes:
+      - ./src:/app/src:ro
+    environment:
+      - NODE_ENV=dev
+    command: ["npm", "run", "dev"]  // see the command added here
+```
+
+You may keep the CMD command as it is in your Dockerfile as the commands shown above will override that one and it would reflect your env.
+
+Now, we're done with running the command! How about `npm install`? We are worried that in production we might install `nodemon` there as well. We want to keep it only for dev environment. Here is how we can solve that:
+
+1. Remove `build: .` from `docker-compose.yml` as that would not be common among all envs anymore.
+2. In Dockerfile, remove `RUN npm install`, and add the following lines instead:
+
+```
+ARG NODE_ENV
+
+RUN if [ "$NODE_ENV" = "prod" ]; \
+    then npm install --omit=dev; \
+    else npm install; \
+    fi
+
+```
+
+`ARG` states for **Argument**. It's the parameter we will pass from Docker compose to tell Dockerfile what env we are using.
+The purpose of the above block is to say, if `NODE_ENV` is dev, we want to run `npm install --omit=dev`, and if `NODE_ENV` is prod, we want to run `npm install`. So your Dockerfile would look like:
+
+```
+FROM node:20
+
+WORKDIR /app
+
+COPY package.json .
+
+ARG NODE_ENV
+
+RUN if [ "$NODE_ENV" = "prod" ]; \
+    then npm install --omit=dev; \
+    else npm install; \
+    fi
+
+COPY . .
+
+EXPOSE 4000
+
+CMD [ "npm", "run", "dev" ]
+```
+
+Side note, `--omit=dev` omits all the devDependencies packages when it installs your packages, ensuring only installing commands that are ready for prod (a.k.a without nodemon)
+
+3. In your `docker-compose.dev.yml`, add the following block:
+
+```
+    build:
+      context: .
+      args:
+        - NODE_ENV=dev
+```
+
+and for your `docker-compose.prod.yml`, add the following block:
+
+```
+    build:
+      context: .
+      args:
+        - NODE_ENV=prod
+```
+
+`args` here tells Dockerfile what environment we are running.
+
+Finally, we need to use this command in the terminal to run it:
+`docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
+
+Change `docker-compose.dev.yml` to `docker-compose.prod.yml`if you want to run your production containers.
+
+:warning: Based on my notice if you run your `docker-compose.dev.yml` and then stop the container and try to build again to run on `docker-compose.prod.yml`, your `node_modules` might get cached, so you might still see devDependency packages inside your production modules. Don't panic. Just use the following command to **clean Docker build**:
+`docker-compose -f docker-compose.yml -f docker-compose.prod.yml down --rmi all`
+
+`--rmi` stands for _remove images_. It allows you to specify whether or not Docker should remove the images used by your services when taking down the containers.
+
 ## Configurations for Windows Users
 
 :warning: **Important:** Due to different behaviors on operating systems, it is advisable to use absolute path for the [host-path] part as relative paths might may cause issues on Windows depending on how Docker is configured. For example, your command will looks like `docker run --name [container-name] -v C:/Users/Loai/Desktop/[project-name]:/app -d -p PORT:PORT [image-name]`. MacOS/Linux might not face the same issue and relative paths generally work fine with them.
