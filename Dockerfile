@@ -4,7 +4,12 @@ WORKDIR /app
 
 COPY package.json .
 
-RUN npm install 
+ARG NODE_ENV
+
+RUN if [ "$NODE_ENV" = "prod" ]; \
+    then npm install --omit=dev; \
+    else npm install; \
+    fi
 
 COPY . .
 

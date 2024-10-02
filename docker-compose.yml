@@ -1,7 +1,6 @@
 services:
   node-app:
     container_name: docker-hands-on-container
-    build: .
     ports:
       - "4000:4000"
     env_file:
