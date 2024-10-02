@@ -2,3 +2,4 @@
 /Dockerfile
 .env
 docker-compose*
+README.md
