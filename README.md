@@ -357,6 +357,54 @@ Change `docker-compose.dev.yml` to `docker-compose.prod.yml`if you want to run y
 
 `--rmi` stands for _remove images_. It allows you to specify whether or not Docker should remove the images used by your services when taking down the containers.
 
+### Multi-Stage Dockerfile
+
+Another way for you to allow Dockerfile accommodate different stages or environments is to introduce how you expect it to handle each stage using `as <env>`.
+
+Also, you may use `base` to help you configure the instructions that need to run in common before starting your specific environment configurations. Your Dockerfile might look like this:
+
+```
+FROM node:20 as base
+
+
+FROM base as dev
+
+WORKDIR /app
+COPY package.json .
+ARG NODE_ENV
+RUN npm install
+COPY . .
+EXPOSE 4000
+CMD [ "npm", "run", "dev" ]
+
+
+FROM base as prod
+
+WORKDIR /app
+COPY package.json .
+ARG NODE_ENV
+RUN npm install --omit=dev
+COPY . .
+EXPOSE 4000
+CMD [ "npm", "start" ]
+```
+
+If you wonder how Dockerfile will know which stage/env you are introducing, we still need to do a slight adjustment on docker-compose files as well.
+
+Replace your `args` block with `target: <env>`, so your `docker-compose.prod.yml` file will look, for example, as follows:
+
+```
+services:
+  node-app:
+    build:
+      context: .
+      target: prod  // we added this
+    environment:
+      - NODE_ENV=prod
+    command: ["npm", "start"]
+
+```
+
 ## Configurations for Windows Users
 
 :warning: **Important:** Due to different behaviors on operating systems, it is advisable to use absolute path for the [host-path] part as relative paths might may cause issues on Windows depending on how Docker is configured. For example, your command will looks like `docker run --name [container-name] -v C:/Users/Loai/Desktop/[project-name]:/app -d -p PORT:PORT [image-name]`. MacOS/Linux might not face the same issue and relative paths generally work fine with them.
