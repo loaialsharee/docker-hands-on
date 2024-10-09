@@ -405,6 +405,48 @@ services:
 
 ```
 
+## Running and Communicating Services (NodeJs with MongoDB)
+
+Running and communicating multiple containers is very common in development. This section will layout how you can run two containers - one for your NodeJs application and the other for your MongoDB database.
+
+Start by installing mongoose: `npm install mongoose`. Then, by looking at your `docker-compose.yml` file. We store there our common services. We will need to add our mongoDB service there. By looking at [DockerHub](https://hub.docker.com/), we can now what configurations we need to add to our compose file. A sample could be the following:
+
+```
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+```
+
+Please note that when you specify `restart: always`, the Docker daemon will try to restart the container indefinitely.
+
+In your `index.js` file, we need to add the mongoose connection, as in follows:
+
+```
+const URI = `mongodb://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}`
+mongoose.connect(URI)
+    .then(() => console.log('connected to db'))
+    .catch((err) => console.log('failed to connect to db', err));
+```
+
+We identified the `DB_USER` and `DB_PASSWORD` from settings in our compose file we set, we need to identify the `DB_HOST` and `DB_PORT`.
+
+To get the `DB_PORT`, we can just start our container by building the image using the command explained previously: `docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`, then running `docker ps`. You can then see the ports that is responsible to run mongo.
+
+To get the `DB_HOST`, we need to check the network of the container. The following commands will help you do that:
+
+- `docker network ls`: lists all the networks the Engine `daemon` knows about. This includes the networks that span across multiple hosts in a cluster.
+
+Usually the network's name you want to target holds the your project name (check your IDE) then a `_default` substring added to it. So, for example, if your project name is `docker-hands-on`, your network name shall be `docker-hands-on_default`.
+
+Once you get that name, run the following command:
+
+- `docker network inspect <network-name>`: returns information about one or more networks. By default, this command renders all results in a JSON object.
+
+By checking the container object, you can see the mongo IPv4Address and that's your DB host. However, it is not practical to always do this to check as this IP address might change, so what you can do is just to include your service name like `mongo` to your DB Host and Docker is smart enough to detect it.
+
 ## Configurations for Windows Users
 
 :warning: **Important:** Due to different behaviors on operating systems, it is advisable to use absolute path for the [host-path] part as relative paths might may cause issues on Windows depending on how Docker is configured. For example, your command will looks like `docker run --name [container-name] -v C:/Users/Loai/Desktop/[project-name]:/app -d -p PORT:PORT [image-name]`. MacOS/Linux might not face the same issue and relative paths generally work fine with them.
