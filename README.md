@@ -131,6 +131,12 @@ Your run command will look like: `docker run --name <container-name> -v [host-pa
 
 Now, even if you delete `node_modules` are deleted in your local, your application on the container will still be running, but you might notice the modules are removed from your container as well (when you use `docker exec...` command to view the content of the container files). Don't worry, `node_modules` are still there. As we said, the data persists as long as the volume exists, so if you remove/delete the container and run it back, you will see the modules coming back again (even though your modules are deleted from your local machine). You may navigate to Docker Desktop -> Volumes to view your available volumes. That explains why the application was still running and not crashed in the container.
 
+The following are some of the commands you might need to use to interact with volumes
+
+- `docker volume ls`: lists all the available volumes
+- `docker volume rm <volume-name>`: removes the volume you want to remove (name can be obtained from `docker volume ls` command)
+- `docker volume prune`: removes the volumes that are not being used by the current running containers (unused ones only).
+
 Is there a simpler solution? Of course!
 
 ### Alternative Solution
@@ -446,6 +452,45 @@ Once you get that name, run the following command:
 - `docker network inspect <network-name>`: returns information about one or more networks. By default, this command renders all results in a JSON object.
 
 By checking the container object, you can see the mongo IPv4Address and that's your DB host. However, it is not practical to always do this to check as this IP address might change, so what you can do is just to include your service name like `mongo` to your DB Host and Docker is smart enough to detect it.
+
+When you shut off the containers, the data stored in mongo container is erased. How can we avoid such issue?
+
+As has been discussed previously, via **Volumes**. How can we create a volume here?
+
+As follows:
+
+1. First, create volumes block (same level as services block).
+2. Call the volumes instance as `mongo-db` for example. Your block should look like this:
+
+```
+volumes:
+  mongo-db:
+```
+
+3. At your `mongo` service, add volumes and define it this way:
+
+```
+volumes:
+  - mongo-db:/data/db
+```
+
+:warning: Note that if you define the volume as:
+
+```
+volumes:
+  - /data/db
+```
+
+every time you run the container, a file /data/db will be created every time you run the container. You need to link it up with `mongo-db` volume that you have initiated to ensure data consistency.
+
+Bonus: You can interact with the database by executing the bash with this command:
+`docker exec -it docker-hands-on-mongo-1 mongosh -u root -p example`
+then
+
+- `show dbs`: to show databases available
+- `use <db-name>`: to create a db
+- `db.<collection-name>.insertOne({mydata: "whatever"})`: to insert data into your new collection
+- `db.<collection-name>.find()`: to display the data in your collection
 
 ## Configurations for Windows Users
 
