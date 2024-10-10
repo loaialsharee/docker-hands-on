@@ -492,6 +492,27 @@ then
 - `db.<collection-name>.insertOne({mydata: "whatever"})`: to insert data into your new collection
 - `db.<collection-name>.find()`: to display the data in your collection
 
+## Containers Dependency
+
+Some of your containers will need to depend on other containers when it comes to running their services.
+In our guide here, we have a NodeJs app that depends on both MongoDB and Redis. If our NodeJS container started before MongoDB service, NodeJS app will crash as its dependency is not ready yet. For that, we need to add a special configuration key called `depends_on`.
+
+So for example, since your NodeJs depends on Mongo and Redis, you will add the config key as follows:
+
+```
+ node-app:
+    container_name: docker-hands-on-container
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./.env
+    depends_on:
+      - mongo
+      - redis
+```
+
+This way you can guarantee that the containers our NodeJs app depend on will run and be ready just before the NodeJS container comes to life.
+
 ## Configurations for Windows Users
 
 :warning: **Important:** Due to different behaviors on operating systems, it is advisable to use absolute path for the [host-path] part as relative paths might may cause issues on Windows depending on how Docker is configured. For example, your command will looks like `docker run --name [container-name] -v C:/Users/Loai/Desktop/[project-name]:/app -d -p PORT:PORT [image-name]`. MacOS/Linux might not face the same issue and relative paths generally work fine with them.
