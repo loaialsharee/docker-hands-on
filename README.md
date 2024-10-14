@@ -513,6 +513,11 @@ So for example, since your NodeJs depends on Mongo and Redis, you will add the c
 
 This way you can guarantee that the containers our NodeJs app depend on will run and be ready just before the NodeJS container comes to life.
 
+## Development Notes
+
+1. [**Connection Issues with DBs**]: Some issues might be strange when working with Docker compose, you might face a connection issue or anything related. If you are working with `volumes`, consider deleting them, this might solve the "illogical" problem you face.
+   The following command shuts down Docker Compose AND removes volumes: `docker-compose -f <common-compose-file> -f <env-compose-file> down -v`, where `-v` removes all the volumes being utilised. Use with care!
+
 ## Configurations for Windows Users
 
 :warning: **Important:** Due to different behaviors on operating systems, it is advisable to use absolute path for the [host-path] part as relative paths might may cause issues on Windows depending on how Docker is configured. For example, your command will looks like `docker run --name [container-name] -v C:/Users/Loai/Desktop/[project-name]:/app -d -p PORT:PORT [image-name]`. MacOS/Linux might not face the same issue and relative paths generally work fine with them.
